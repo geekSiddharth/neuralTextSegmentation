@@ -62,7 +62,7 @@ def load_saved_model():
 
     model = load_model(filename)
     return model
-        
+
 
 
 def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, vocab_size):
@@ -77,7 +77,7 @@ def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, v
     #pdb.set_trace()
     ngram_filters = [2, 3, 4, 5]
     conv_hidden_units = [200, 200, 200, 200]
-    
+
     left_context= Input(shape=(ONE_SIDE_CONTEXT_SIZE+1, embedding_dim), dtype='float32', name='left-context')
     main_input = Input(shape=(1, embedding_dim), dtype='float32', name='main-input')
     right_context = Input(shape=(ONE_SIDE_CONTEXT_SIZE+1, embedding_dim), dtype='float32', name='right-context')
@@ -133,7 +133,7 @@ def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, v
 
     decoded = Dense(500, name='decoded')(encoded_info)
     decoded_drop = Dropout(0.3, name='decoded_drop')(decoded)
-    
+
     output = Dense(2, activation='sigmoid')(decoded_drop)
     model = Model(input=[left_context, main_input, right_context], output=output)
     model.layers[1].trainable = TRAINABLE_EMBEDDINGS
@@ -318,9 +318,9 @@ def custom_fit(X_train, Y_train, X_test, Y_test, model, batch_size, epochs=10):
         #testing_on_data("Biography", X_bio, Y_bio, model, batch_size)
         testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True)
         testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True)
-    
+
         print('___________________________________')
-    
+
         # Testing
         print "####################################################################"
         print ">> (TEST - after %d/%d epoch) >> Testing, X:"%(epoch+1, epochs), X_test.shape, "Y:", Y_test.shape
@@ -335,7 +335,7 @@ def custom_fit(X_train, Y_train, X_test, Y_test, model, batch_size, epochs=10):
         print('accuracy testing = {}'.format(np.mean(mean_te_acc)))
         print('recall testing = {}'.format(np.mean(mean_te_rec)))
         print('loss testing = {}'.format(np.mean(mean_te_loss)))
-    
+
 
 def save_predictions(type_of_data, X_test, Y_test, model, batch_size, summary_only=False):
     # Predicting
@@ -441,7 +441,7 @@ def testing_on_data(type_of_data, X_test, Y_test, model, batch_size, summary_onl
 #            for sentence in batch:
 #                seq.append(sentence)
 #    return np.asarray(seq)
-    
+
 
 
 def split_data(X, Y, train_split):
@@ -465,14 +465,14 @@ def train_LSTM(X, Y, model, embedding_W, train_split=0.8, epochs=10, batch_size=
     if which_model == 2:
         #custom_fit(X_train, Y_train, X_test, Y_test, model=model, batch_size=batch_size, epochs=epochs)
         custom_fit(X_train, Y_train, X_test, Y_test, model=model, batch_size=batch_size, epochs=epochs)
-        
+
         print ">>>>>> Final Testing <<<<<<"
         #print ">> ATTENTION weights:"
         #print "################# Left - attention - weights "
         #attn_weights_left = [model.get_layer("encode-left-attention").get_weights(), model.get_layer("encode-left-attention").get_weights()]
         #print attn_weights_left[0]
         #print attn_weights_left[1]
-        #  
+        #
         #attn_weights_right = [model.get_layer("encode-right-attention").get_weights(), model.get_layer("encode-right-attention").get_weights()]
         #print "################# RIght - attention - weights "
         #print attn_weights_right[0]
@@ -484,20 +484,20 @@ def train_LSTM(X, Y, model, embedding_W, train_split=0.8, epochs=10, batch_size=
         testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True, visualize=False)
         testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True, visualize=False)
 
-        
+
 #    elif which_modle == 1:
 #        # Works for TYPE2 but check for others
 #        # Both these lines work for which_model == 1
 #        model.fit(X_train, Y_train, shuffle=False, nb_epoch=epochs, batch_size=batch_size, validation_data=(X_test, Y_test))
-#    
+#
 #        # WIkipedia
 #        #model.evaluate(X_test, Y_test, batch_size=batch_size)
 #        #pred = model.predict(X_test)
 #        #rounded = np.round(pred)
 #        #result = helper.windiff_metric_NUMPY(Y_test, rounded)
 #        #print result
-#    
-#        
+#
+#
 #        # Clinical
 #        # Temporary TRUNCATION
 #        TRUNCATE_LEN = X_train.shape[1]
@@ -513,7 +513,7 @@ def train_LSTM(X, Y, model, embedding_W, train_split=0.8, epochs=10, batch_size=
     #pdb.set_trace()
 
     #rounded = [round(x) for x in pred]
-    
+
 
 if __name__ == "__main__":
 
@@ -522,19 +522,19 @@ if __name__ == "__main__":
     print "NOTE: Make sure you have MIN_SENTENCES_IN_DOCUMENT >= 2*context_size + 1"
 
     # For which_model == 2
-    SAMPLE_TYPE_wiki, X_wiki, Y_wiki, trained_sample_handler = get_input(sample_type=2, shuffle_documents=True, pad=False)
+    SAMPLE_TYPE_wiki, X_wiki, Y_wiki, trained_sample_handler = get_input(sample_type=7, shuffle_documents=True, pad=False)
     NO_OF_SAMPLES, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM = X_wiki.shape[0], -1, X_wiki[0].shape[1]          #MAX_SEQUENCE_LENGTH is is already padded
-    
+
     # For which_model == 2
     # Biography data for training
     #SAMPLE_TYPE_bio, X_bio, Y_bio, trained_sample_handler = get_input(sample_type=5, shuffle_documents=False, pad=False, trained_sent2vec_model=trained_sample_handler)
     #NO_OF_SAMPLES, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM = X_bio.shape[0], -1, X_bio[0].shape[1]          #MAX_SEQUENCE_LENGTH is is already padded
-    
+
     # Clinical, Fiction, Wikipedia - Only for testing
     SAMPLE_TYPE_cli, X_cli, Y_cli, trained_sample_handler = get_input(sample_type=4, shuffle_documents=False, pad=False, trained_sent2vec_model=trained_sample_handler)
     SAMPLE_TYPE_fic, X_fic, Y_fic, trained_sample_handler = get_input(sample_type=6, shuffle_documents=False, pad=False, trained_sent2vec_model=trained_sample_handler)
     SAMPLE_TYPE_wikitest, X_wikitest, Y_wikitest, trained_sample_handler = get_input(sample_type=7, shuffle_documents=False, pad=False, trained_sent2vec_model=trained_sample_handler)
-    
+
     #print "Check data type"
     #pdb.set_trace()
 

@@ -120,7 +120,7 @@ def get_input(sample_type, shuffle_documents, pad, trained_sent2vec_model=None):
     progbar.simple_update("Creating a standalone matrix for samples...", -1, -1)
     X, Y = np.asarray(X), np.asarray(Y)
     progbar.end()
-    
+
 
     print "Total samples: %d" %(len(X))
     if shuffle_documents: # Shuffle the X's and Y's if required
@@ -153,5 +153,5 @@ def get_input(sample_type, shuffle_documents, pad, trained_sent2vec_model=None):
 
 
 if __name__=="__main__":
-    get_input(sample_type=2, shuffle_documents=True, pad=False)
+    get_input(sample_type=4,shuffle_documents=True, pad=False)
     pdb.set_trace()

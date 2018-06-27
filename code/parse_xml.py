@@ -9,10 +9,10 @@ import codecs
 
 from helper import compute_avg_seg_len
 
-# import logging
-# logging.basicConfig(level=logging.DEBUG,
-#                    format='(%(threadName)-10s) %(message)s',
-#                    )
+import logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='(%(threadName)-10s) %(message)s',
+                    )
 
 
 # Skip that condition if the value is -1
@@ -43,7 +43,7 @@ class DataHandler:
         self.sample_creator = SampleCreator()
 
         self.PROCESS_MAX_FILES = -1
-        # self.PROCESS_MAX_FILES = 5000
+        # self.PROCESS_MAX_FILS = 5000
         # self.PROCESS_MAX_FILES = 4400
         # self.PROCESS_MAX_FILES = 4000
         # self.PROCESS_MAX_FILES = 1500
@@ -103,8 +103,8 @@ class DataHandler:
                     # Flush old data & reset
                     self.documents.append((docID, sections))
                     docID, sections, paragraph, start_line = None, [], [], None
-                elif not start_line and lno == start_line + 1:  # Doc title
-                    self.document_id_to_title[docID] = line
+                elif not start_line is None and lno == start_line + 1:  # Doc title
+                    document_id_to_title[docID] = line
                 elif _heading:
 
                     # Do this only for the top sections as we are using the paragraphs
@@ -127,7 +127,7 @@ class DataHandler:
             # Remove documents with less than 2 sections
             if MIN_SECTIONS != -1:
                 if len(sections) <= MIN_SECTIONS:
-                    # print docID, ": Fails at MIN_SECTIONS (", len(sections), "/", MIN_SECTIONS, ")"
+                    print docID, ": Fails at MIN_SECTIONS (", len(sections), "/", MIN_SECTIONS, ")"
                     continue
 
             sentence_counts = [[len(par) for par in section] for section in sections]
@@ -136,24 +136,25 @@ class DataHandler:
             if MIN_SENTENCES_IN_DOCUMENT != -1:
                 count = sum([sum(section) for section in sentence_counts])
                 if count < MIN_SENTENCES_IN_DOCUMENT:
-                    # print docID, ": Fails at MIN_SENTENCES_IN_DOCUMENT (", count, "/", MIN_SENTENCES_IN_DOCUMENT,")"
+                    print docID, ": Fails at MIN_SENTENCES_IN_DOCUMENT (", count, "/", MIN_SENTENCES_IN_DOCUMENT,")"
                     continue
 
             # Remove documents that have less than MIN_SENTENCES_IN_SECTION
             if MIN_SENTENCES_IN_SECTION != -1:
                 count = min([sum(section) for section in sentence_counts])
                 if count < MIN_SENTENCES_IN_SECTION:
-                    # print docID, ": Fails at MIN_SENTENCES_IN_SECTION (", count,"/", MIN_SENTENCES_IN_SECTION,")"
+                    print docID, ": Fails at MIN_SENTENCES_IN_SECTION (", count,"/", MIN_SENTENCES_IN_SECTION,")"
                     continue
 
             if MIN_SENTENCES_IN_PARAGRAPH != -1:
                 count = min([min(section) for section in sentence_counts])
                 if count < MIN_SENTENCES_IN_PARAGRAPH:
-                    # print docID, ": Fails at MIN_SENTENCES_IN_PARAGRAPH (", count, "/", MIN_SENTENCES_IN_PARAGRAPH,")"
+                    print docID, ": Fails at MIN_SENTENCES_IN_PARAGRAPH (", count, "/", MIN_SENTENCES_IN_PARAGRAPH,")"
                     continue
 
             best_docs.append(docID)
 
+        print(best_docs)
         # Skip the bad documents
         best_docs = set(best_docs)
         new_docs = [doc for doc in self.documents if doc[0] in best_docs]
@@ -283,6 +284,6 @@ class SampleCreator:
 
 if __name__ == "__main__":
     data_handler = DataHandler()
-    # data_handler.get_sequence_samples()
-    data_handler.get_samples()
-    # import pdb; pdb.set_trace()
+    #x = data_handler.get_sequence_samples()
+    x =data_handler.get_samples()
+    import pdb; pdb.set_trace()
