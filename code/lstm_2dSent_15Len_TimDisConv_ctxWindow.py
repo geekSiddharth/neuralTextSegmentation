@@ -3,19 +3,17 @@ import pdb
 import sys
 import time
 
+import helper
 import numpy as np
+import progbar
+from AttentionWithContext import AttentionWithContext
 from keras.layers import Dense, Dropout, Embedding, Flatten, Input, Merge, Convolution1D, GlobalMaxPooling1D, LSTM, \
     Bidirectional
 from keras.layers.wrappers import TimeDistributed
 from keras.models import Model
 from keras.models import load_model
-from keras.utils.np_utils import to_categorical
-
-import helper
-import progbar
 # from attention_lstm import AttentionLSTM
 # from attention_lstm_without_weights import Attention
-from my_categorical import w_binary_crossentropy
 from sample_handler import get_input
 
 trained_sample_handler = None
@@ -33,7 +31,7 @@ SCALE_LOSS_FUN = True
 ONE_SIDE_CONTEXT_SIZE = 10
 
 LOAD_SAVED_MODEL_AND_CONTINUE_TRAIN = False
-SAVE_MODEL_AFTER_EACH_EPOCH = False
+SAVE_MODEL_AFTER_EACH_EPOCH = True
 TRAINABLE_EMBEDDINGS = False
 
 np.random.seed(2345)  # IMP seed
@@ -70,10 +68,10 @@ def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, v
 
     context_embedder = TimeDistributed(
         Embedding(vocab_size + 1, GLOVE_EMBEDDING_DIM, weights=[embedding_matrix], input_length=embedding_dim,
-                  init='uniform'))
+                  init='uniform', trainable=False))
     main_input_embedder = TimeDistributed(
         Embedding(vocab_size + 1, GLOVE_EMBEDDING_DIM, weights=[embedding_matrix], input_length=embedding_dim,
-                  init='uniform'))
+                  init='uniform', trainable=False))
     embedded_input_left, embedded_input_main, embedded_input_right = context_embedder(
         left_context), main_input_embedder(main_input), context_embedder(right_context)
 
@@ -117,14 +115,16 @@ def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, v
              return_sequences=True, stateful=False), name='BiLSTM-context-encoder', merge_mode='concat')
     ####context_encoder = Bidirectional(LSTM(600, input_shape=(ONE_SIDE_CONTEXT_SIZE, CONV_DIM), consume_less='gpu', dropout_W=0.3, dropout_U=0.3, return_sequences=False, stateful=False), name='BiLSTM-context-encoder', merge_mode='concat')
 
-    # encode_left = Attention(name='encode-left-attention')(context_encoder(context_encoder_intermediate1(convoluted_left)))
-    # encode_right = Attention(name='encode-right-attention')(context_encoder(context_encoder_intermediate1(convoluted_right)))
+    encode_left = AttentionWithContext()(
+        context_encoder(context_encoder_intermediate1(convoluted_left)))
+    encode_right = AttentionWithContext()(
+        context_encoder(context_encoder_intermediate1(convoluted_right)))
     # encode_left = Attention(name='encode-left-attention')(
     # context_encoder(context_encoder_intermediate1(convoluted_left)))
     # encode_right = Attention(name='encode-right-attention')(
     # context_encoder(context_encoder_intermediate1(convoluted_right)))
-    encode_left = context_encoder(context_encoder_intermediate1(convoluted_left))
-    encode_right = context_encoder(context_encoder_intermediate1(convoluted_right))
+    # encode_left = context_encoder(context_encoder_intermediate1(convoluted_left))
+    # encode_right = context_encoder(context_encoder_intermediate1(convoluted_right))
     encode_left_drop, encode_mid_drop, encode_right_drop = Dropout(0.3)(encode_left), Dropout(0.2)(encode_mid), Dropout(
         0.3)(encode_right)
 
@@ -133,11 +133,11 @@ def lstm_model(sequences_length_for_training, embedding_dim, embedding_matrix, v
     decoded = Dense(500, name='decoded')(encoded_info)
     decoded_drop = Dropout(0.3, name='decoded_drop')(decoded)
 
-    output = Dense(2, activation='sigmoid')(decoded_drop)
+    output = Dense(1, activation='sigmoid')(decoded_drop)
     model = Model(input=[left_context, main_input, right_context], output=output)
     model.layers[1].trainable = TRAINABLE_EMBEDDINGS
     # model.compile(loss=w_binary_crossentropy, optimizer='rmsprop', metrics=['accuracy', 'recall'])
-    model.compile(loss=w_binary_crossentropy, optimizer='adadelta', metrics=['accuracy', 'recall'])
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy', 'recall'])
 
     print model.summary(line_length=150, positions=[.46, .65, .77, 1.])
     return model
@@ -273,10 +273,11 @@ def custom_fit(X_train, Y_train, X_test, Y_test, model, batch_size, epochs=10):
             try:
                 # pdb.set_trace()
 
-                batch_Y_mid = to_categorical(batch_Y_mid, nb_classes=2)
+                # batch_Y_mid = to_categorical(batch_Y_mid, nb_classes=2)
 
                 start = time.time()
-                tr_loss, tr_acc, tr_rec = model.train_on_batch([batch_X_left, batch_X_mid, batch_X_right], batch_Y_mid)
+                tr_loss, tr_acc, tr_rec = model.train_on_batch([batch_X_left, batch_X_mid, batch_X_right], batch_Y_mid,
+                                                               class_weight=class_weight)
                 speed = time.time() - start
 
                 mean_tr_acc.append(tr_acc)
@@ -320,11 +321,11 @@ def custom_fit(X_train, Y_train, X_test, Y_test, model, batch_size, epochs=10):
         print('recall training = {}'.format(np.mean(mean_tr_rec)))
         print('loss training = {}'.format(np.mean(mean_tr_loss)))
 
-        testing_on_data("Wikipedia(DEVELOPMENT)", X_test, Y_test, model, batch_size, summary_only=True)
-        testing_on_data("Clinical", X_cli, Y_cli, model, batch_size, summary_only=True)
+        # testing_on_data("Wikipedia(DEVELOPMENT)", X_test, Y_test, model, batch_size, summary_only=True)
+        # testing_on_data("Clinical", X_cli, Y_cli, model, batch_size, summary_only=True)
         # testing_on_data("Biography", X_bio, Y_bio, model, batch_size)
-        testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True)
-        testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True)
+        # testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True)
+        # testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True)
 
         print('___________________________________')
 
@@ -334,7 +335,7 @@ def custom_fit(X_train, Y_train, X_test, Y_test, model, batch_size, epochs=10):
         mean_te_acc, mean_te_loss, mean_te_rec = [], [], []
         for batch_X_left, batch_X_mid, batch_X_right, batch_Y_mid in batch_gen_consecutive_context_segments_from_big_seq(
                 "test", X_test, Y_test, batch_size, ONE_SIDE_CONTEXT_SIZE):
-            batch_Y_mid = to_categorical(batch_Y_mid, nb_classes=2)
+            # batch_Y_mid = to_categorical(batch_Y_mid, nb_classes=2)
             te_loss, te_acc, te_rec = model.test_on_batch([batch_X_left, batch_X_mid, batch_X_right], batch_Y_mid)
             mean_te_acc.append(te_acc)
             mean_te_loss.append(te_loss)
@@ -495,12 +496,7 @@ def train_LSTM(X, Y, model, embedding_W, train_split=0.8, epochs=10, batch_size=
         # print attn_weights_right[0]
         # print attn_weights_right[1]
 
-        testing_on_data("Wikipedia(DEVELOPMENT)", X_test, Y_test, model, batch_size, summary_only=True, visualize=False)
-        testing_on_data("Clinical", X_cli, Y_cli, model, batch_size, summary_only=True, visualize=False)
-        # testing_on_data("Biography", X_bio, Y_bio, model, batch_size)
-        testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True, visualize=False)
-        testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True,
-                        visualize=False)
+
 
 
         #    elif which_modle == 1:
@@ -540,24 +536,10 @@ if __name__ == "__main__":
     print "NOTE: Make sure you have MIN_SENTENCES_IN_DOCUMENT >= 2*context_size + 1"
 
     # For which_model == 2
-    SAMPLE_TYPE_wiki, X_wiki, Y_wiki, trained_sample_handler = get_input(sample_type=7, shuffle_documents=True,
-                                                                         pad=True)
+    SAMPLE_TYPE_wiki, X_wiki, Y_wiki, trained_sample_handler = get_input(sample_type=4, shuffle_documents=True,
+                                                                         pad=False)
     NO_OF_SAMPLES, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM = X_wiki.shape[0], -1, X_wiki[0].shape[
         1]  # MAX_SEQUENCE_LENGTH is is already padded
-
-    # For which_model == 2
-    # Biography data for training
-    # SAMPLE_TYPE_bio, X_bio, Y_bio, trained_sample_handler = get_input(sample_type=5, shuffle_documents=False, pad=False, trained_sent2vec_model=trained_sample_handler)
-    # NO_OF_SAMPLES, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM = X_bio.shape[0], -1, X_bio[0].shape[1]          #MAX_SEQUENCE_LENGTH is is already padded
-
-    # Clinical, Fiction, Wikipedia - Only for testing
-    # SAMPLE_TYPE_cli, X_cli, Y_cli, trained_sample_handler = get_input(sample_type=4, shuffle_documents=False, pad=False,
-    #                                                                   trained_sent2vec_model=trained_sample_handler)
-    # SAMPLE_TYPE_fic, X_fic, Y_fic, trained_sample_handler = get_input(sample_type=6, shuffle_documents=False, pad=False,
-    #                                                                   trained_sent2vec_model=trained_sample_handler)
-    # SAMPLE_TYPE_wikitest, X_wikitest, Y_wikitest, trained_sample_handler = get_input(sample_type=7,
-    #                                                                                  shuffle_documents=False, pad=False,
-    #                                                                                  trained_sent2vec_model=trained_sample_handler)
 
     # print "Check data type"
     # pdb.set_trace()
@@ -577,7 +559,41 @@ if __name__ == "__main__":
         model = lstm_model(-1, EMBEDDING_DIM, embedding_W, len(dictionary_object.word2id_dic))
         ####model = lstm_model(-1, EMBEDDING_DIM, embedding_W, None)
 
-    train_LSTM(X_wiki, Y_wiki, model, None, train_split=0.8, epochs=30, batch_size=40)
+    train_LSTM(X_wiki, Y_wiki, model, embedding_W, train_split=0.8, epochs=30, batch_size=200)
+
+    batch_size = 200
+
+    # For which_model == 2
+    # Biography data for training
+    SAMPLE_TYPE_bio, X_bio, Y_bio, trained_sample_handler = get_input(sample_type=5, shuffle_documents=False, pad=False,
+                                                                      trained_sent2vec_model=trained_sample_handler)
+    NO_OF_SAMPLES, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM = X_bio.shape[0], -1, X_bio[0].shape[
+        1]  # MAX_SEQUENCE_LENGTH is is already padded
+
+    testing_on_data("Biography", X_bio, Y_bio, model, batch_size, summary_only=True, visualize=False)
+
+    # Clinical, Fiction, Wikipedia - Only for testing
+    SAMPLE_TYPE_cli, X_cli, Y_cli, trained_sample_handler = get_input(sample_type=4, shuffle_documents=False, pad=False,
+                                                                      trained_sent2vec_model=trained_sample_handler)
+    testing_on_data("Clinical", X_cli, Y_cli, model, batch_size, summary_only=True, visualize=False)
+
+    SAMPLE_TYPE_fic, X_fic, Y_fic, trained_sample_handler = get_input(sample_type=6, shuffle_documents=False, pad=False,
+                                                                      trained_sent2vec_model=trained_sample_handler)
+
+    testing_on_data("Fiction", X_fic, Y_fic, model, batch_size, summary_only=True, visualize=False)
+
+    SAMPLE_TYPE_wikitest, X_wikitest, Y_wikitest, trained_sample_handler = get_input(sample_type=7,
+                                                                                     shuffle_documents=False, pad=False,
+                                                                                     trained_sent2vec_model=trained_sample_handler)
+
+    testing_on_data("Wikipedia(DEVELOPMENT)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True,
+                    visualize=False)
+
+    # testing_on_data("Wikipedia(BENCHMARK)", X_wikitest, Y_wikitest, model, batch_size, summary_only=True,
+    # visualize=False)
+
+    pdb.set_trace()
+    # custom_fit(X_wiki, Y_wiki, X_cli, Y_cli, model, batch_size=40, epochs=30)
     ##train_LSTM(X_bio, Y_bio, model, embedding_W, train_split=0.7, epochs=1, batch_size=32)
 
     # Context variation experiment

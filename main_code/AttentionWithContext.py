@@ -1,26 +1,51 @@
-from keras import backend as K
-from keras import initializations, regularizers, constraints
-from keras.layers.core import Layer
+# coding: utf-8
+
+"""
+    This code is the reason for using Theano.
+     -  ait = K.dot(uit, self.u) (~ line no 84) gives error on Tensorflow
+    This is same as the original code provided by neuralTextSegmentation code on GitHub
+    URL: https://github.com/pinkeshbadjatiya/neuralTextSegmentation/blob/master/code/AttentionWithContext.py
+"""
+
+from keras import backend as K, initializers, regularizers, constraints
+from keras.layers import Layer
+
+
+def dot_product(x, kernel):
+    """
+    Wrapper for dot product operation, in order to be compatible with both
+    Theano and Tensorflow
+    Args:
+        x (): input
+        kernel (): weights
+    Returns:
+    """
+    if K.backend() == 'tensorflow':
+        return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
+    else:
+        return K.dot(x, kernel)
 
 
 class AttentionWithContext(Layer):
     """
-        Attention operation, with a context/query vector, for temporal data.
-        Supports Masking.
-        Follows the work of Yang et al. [https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf]
-        "Hierarchical Attention Networks for Document Classification"
-        by using a context vector to assist the attention
-        # Input shape
-            3D tensor with shape: `(samples, steps, features)`.
-        # Output shape
-            2D tensor with shape: `(samples, features)`.
-        :param kwargs:
-        Just put it on top of an RNN Layer (GRU/LSTM/SimpleRNN) with return_sequences=True.
-        The dimensions are inferred based on the output shape of the RNN.
-        Example:
-            model.add(LSTM(64, return_sequences=True))
-            model.add(AttentionWithContext())
-        """
+    Attention operation, with a context/query vector, for temporal data.
+    Supports Masking.
+    Follows the work of Yang et al. [https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf]
+    "Hierarchical Attention Networks for Document Classification"
+    by using a context vector to assist the attention
+    # Input shape
+        3D tensor with shape: `(samples, steps, features)`.
+    # Output shape
+        2D tensor with shape: `(samples, features)`.
+    How to use:
+    Just put it on top of an RNN Layer (GRU/LSTM/SimpleRNN) with return_sequences=True.
+    The dimensions are inferred based on the output shape of the RNN.
+    Note: The layer has been tested with Keras 2.0.6
+    Example:
+        model.add(LSTM(64, return_sequences=True))
+        model.add(AttentionWithContext())
+        # next add a Dense layer (for classification/regression) or whatever...
+    """
 
     def __init__(self,
                  W_regularizer=None, u_regularizer=None, b_regularizer=None,
@@ -28,7 +53,7 @@ class AttentionWithContext(Layer):
                  bias=True, **kwargs):
 
         self.supports_masking = True
-        self.init = initializations.get('glorot_uniform')
+        self.init = initializers.get('glorot_uniform')
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.u_regularizer = regularizers.get(u_regularizer)
@@ -69,13 +94,13 @@ class AttentionWithContext(Layer):
         return None
 
     def call(self, x, mask=None):
-        uit = K.dot(x, self.W)
+        uit = dot_product(x, self.W)
 
         if self.bias:
             uit += self.b
 
         uit = K.tanh(uit)
-        ait = K.dot(uit, self.u)
+        ait = dot_product(uit, self.u)
 
         a = K.exp(ait)
 
@@ -85,7 +110,7 @@ class AttentionWithContext(Layer):
             a *= K.cast(mask, K.floatx())
 
         # in some cases especially in the early stages of training the sum may be almost zero
-        # and this results in NaN's. A workaround is to add a very small positive number episilon to the sum.
+        # and this results in NaN's. A workaround is to add a very small positive number ε to the sum.
         # a /= K.cast(K.sum(a, axis=1, keepdims=True), K.floatx())
         a /= K.cast(K.sum(a, axis=1, keepdims=True) + K.epsilon(), K.floatx())
 
@@ -93,5 +118,5 @@ class AttentionWithContext(Layer):
         weighted_input = x * a
         return K.sum(weighted_input, axis=1)
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         return input_shape[0], input_shape[-1]

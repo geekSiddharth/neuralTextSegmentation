@@ -1,6 +1,7 @@
 import gensim
 
 import nltk
+
 nltk.data.path.append("../nltk_data")
 
 from nltk.tokenize import word_tokenize
@@ -10,11 +11,10 @@ import pdb
 import numpy as np
 import string
 
-from parse_xml import MIN_SENTENCES_IN_PARAGRAPH, INPUT_VECTOR_LENGTH
+from parse_xml import INPUT_VECTOR_LENGTH
 import codecs
 from dictionary import Dictionary
 from keras.preprocessing.sequence import pad_sequences
-
 
 
 def isINT(w):
@@ -28,15 +28,16 @@ def isINT(w):
 class CustomSent2vec(object):
     """ Converts a sentence to a 2d representation of (AVERAGE_WORDS, EMBEDDING_DIM)
     """
+
     def __init__(self):
         print "Loading word2vec model"
         # TODO: CHNAGE PATH
         # self.model = gensim.models.KeyedVectors.load_word2vec_format('/home/pinkesh.badjatiya/WORD_EMBEDDINGS/word2vec__GoogleNews_100Bwords__300Dvectors__3M_vocab.bin', binary=True)
         self.model = gensim.models.KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-        #self.model = gensim.models.Word2Vec.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+        # self.model = gensim.models.Word2Vec.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
         print "Model Loaded!"
         self.stopwords = set(s_words.words('english') + [w for w in string.punctuation])
-        #self.vectorize = lambda x: self.model[x]
+        # self.vectorize = lambda x: self.model[x]
         self.dictionary = Dictionary(300, self.model)
 
         self.AVERAGE_WORDS = 20
@@ -54,7 +55,7 @@ class CustomSent2vec(object):
             for w in word_tokenize(codecs.decode(sentence, "utf-8")):
                 if not isINT(w):
                     word_id = self.dictionary.word2id(w)
-                    if word_id is None: # Skip useless words, for words without any vector representation use the `<UNK>` word_id
+                    if word_id is None:  # Skip useless words, for words without any vector representation use the `<UNK>` word_id
                         continue
                     vec.append(word_id)
 
@@ -66,7 +67,6 @@ class CustomSent2vec(object):
         X, Y = np.asarray(sample_vec), np.asarray(g_ths).reshape((len(g_ths), 1))
         X = pad_sequences(X, maxlen=self.AVERAGE_WORDS, padding="post", truncating="post", value=0.0, dtype=np.float32)
         return X, Y
-
 
     ############################################################
     ######### Check once, Embedding layer part not added #######
@@ -94,25 +94,27 @@ class CustomSent2vec(object):
             return None
         elif remove < 0:
             # Do not have sentences equal to INPUT_VECTOR_LENGTH
-            #print ">>>>>>>>>>>> Found %d sentences instead of %d" %(len(sample_vec), INPUT_VECTOR_LENGTH)
+            # print ">>>>>>>>>>>> Found %d sentences instead of %d" %(len(sample_vec), INPUT_VECTOR_LENGTH)
             return None
 
         try:
             if len(sample_vec) != len(sample):
-                raise Exception(">>>>>>>>> Found %d sentences in a sample instead of %d. (Skipped sentences while using word2vec)" %(len(sample_vec), len(sample)))
-            
+                raise Exception(
+                    ">>>>>>>>> Found %d sentences in a sample instead of %d. (Skipped sentences while using word2vec)" % (
+                        len(sample_vec), len(sample)))
+
             ##########################################################
             ############ Check karle hstack()/vstack() chahiye
             ##########################################################
             temp = np.vstack(sample_vec)
-            #temp = np.hstack(sample_vec)
+            # temp = np.hstack(sample_vec)
         except Exception, e:
             print ">>>>>>>>>>>>>>>", e
-            #pdb.set_trace()
+            # pdb.set_trace()
             return None
         return temp
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     word2vec = CustomSent2vec()
     pdb.set_trace()
